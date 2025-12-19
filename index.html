@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Producer-Consumer Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @keyframes slotPopIn {
+            0% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slotGlow {
+            0%, 100% {
+                box-shadow: 0 4px 16px rgba(46, 204, 113, 0.3);
+            }
+            50% {
+                box-shadow: 0 6px 24px rgba(46, 204, 113, 0.6);
+            }
+        }
+
+        @keyframes pulseWarning {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(230, 126, 34, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(230, 126, 34, 0);
+            }
+        }
+
+        @keyframes pulseDanger {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(231, 76, 60, 0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        @keyframes blocked {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+            }
+            50% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes semaphoreSignal {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); background: #2ecc71; }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes semaphoreWait {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.85); background: #e74c3c; }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes blockedPulse {
+            0%, 100% {
+                background: #e74c3c;
+                transform: scale(1);
+            }
+            50% {
+                background: #c0392b;
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes rearArrowBounce {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(5px); }
+        }
+
+        @keyframes frontArrowBounce {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(-5px); }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            color: #2c3e50;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            animation: slideDown 0.6s ease-out;
+        }
+
+        .header h1 {
+            font-size: 2.8em;
+            font-weight: 700;
+            color: #1a252f;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            font-size: 1.15em;
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+
+        .hero-buffer {
+            margin-bottom: 60px;
+            animation: fadeIn 0.8s ease-out 0.2s both;
+        }
+
+        .buffer-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .buffer-card.buffer-full {
+            border-color: #e74c3c;
+            box-shadow: 0 8px 32px rgba(231, 76, 60, 0.2);
+        }
+
+        .buffer-card.buffer-warning {
+            border-color: #e67e22;
+            box-shadow: 0 8px 32px rgba(230, 126, 34, 0.15);
+        }
+
+        .buffer-card.buffer-safe {
+            border-color: #27ae60;
+            box-shadow: 0 8px 32px rgba(39, 174, 96, 0.1);
+        }
+
+        .buffer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .buffer-header h2 {
+            font-size: 1.6em;
+            color: #1a252f;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+        }
+
+        .buffer-stats {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .buffer-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .buffer-stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #3498db;
+            line-height: 1;
+        }
+
+        .buffer-stat-label {
+            font-size: 0.8em;
+            color: #95a5a6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        .fifo-container {
+            position: relative;
+            margin: 40px 0;
+        }
+
+        .fifo-markers {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding: 0 10px;
+        }
+
+        .fifo-marker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 0.9em;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+        }
+
+        .fifo-marker.front {
+            background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+        }
+
+        .fifo-marker.rear {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        }
+
+        .fifo-marker.front.active {
+            animation: frontArrowBounce 0.5s ease-in-out;
+        }
+
+        .fifo-marker.rear.active {
+            animation: rearArrowBounce 0.5s ease-in-out;
+        }
+
+        .buffer-slots {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 12px;
+        }
+
+        .buffer-slot {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1em;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 2px solid;
+            cursor: help;
+            min-height: 80px;
+        }
+
+        .buffer-slot.empty {
+            background-color: #ecf0f1;
+            color: #bdc3c7;
+            border-color: #d5dbdb;
+        }
+
+        .buffer-slot.filled {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            border-color: #229954;
+            animation: slotPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .buffer-slot.filled.active {
+            animation: slotGlow 0.6s ease-out;
+        }
+
+        .buffer-slot.warning {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            border-color: #d68910;
+            animation: slotPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .buffer-slot.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            border-color: #a93226;
+            animation: slotPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .buffer-slot.blocked-action {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .slot-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .slot-index {
+            font-size: 0.65em;
+            opacity: 0.7;
+            font-weight: 600;
+        }
+
+        .slot-item {
+            font-size: 1em;
+            font-weight: 700;
+        }
+
+        .blocked-indicator {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7em;
+            font-weight: 700;
+            animation: blockedPulse 1s infinite;
+            box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
+        }
+
+        .tooltip-container {
+            position: relative;
+        }
+
+        .tooltip-container:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(-8px);
+        }
+
+        .tooltip {
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateY(0);
+            translate: -50% 0;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            translate: -50% 0;
+            border: 5px solid rgba(0, 0, 0, 0.85);
+            border-bottom-color: transparent;
+            border-left-color: transparent;
+            border-right-color: transparent;
+        }
+
+        .buffer-info-text {
+            font-size: 0.95em;
+            color: #7f8c8d;
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-weight: 500;
+            margin-top: 20px;
+        }
+
+        .semaphore-section {
+            margin-bottom: 50px;
+            animation: fadeIn 0.8s ease-out 0.4s both;
+        }
+
+        .semaphore-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            border-top: 4px solid #9b59b6;
+        }
+
+        .semaphore-card h2 {
+            font-size: 1.4em;
+            margin-bottom: 25px;
+            color: #1a252f;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+        }
+
+        .semaphore-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .semaphore-item {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ecf0f1 100%);
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .semaphore-item.animating-signal {
+            animation: semaphoreSignal 0.5s ease-out;
+        }
+
+        .semaphore-item.animating-wait {
+            animation: semaphoreWait 0.5s ease-out;
+        }
+
+        .semaphore-label {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .semaphore-value {
+            font-size: 3em;
+            font-weight: 700;
+            color: #3498db;
+            margin-bottom: 10px;
+            line-height: 1;
+        }
+
+        .semaphore-state {
+            font-size: 0.8em;
+            color: #95a5a6;
+            font-weight: 600;
+        }
+
+        .semaphore-operations {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .semaphore-operations .operation {
+            display: inline-block;
+            padding: 4px 12px;
+            margin: 2px 4px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.85em;
+        }
+
+        .semaphore-operations .signal {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .semaphore-operations .wait {
+            background: #fadbd8;
+            color: #e74c3c;
+        }
+
+        .graph-section {
+            margin-bottom: 50px;
+            animation: fadeIn 0.8s ease-out 0.6s both;
+        }
+
+        .graph-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .graph-card h2 {
+            font-size: 1.4em;
+            margin-bottom: 25px;
+            color: #1a252f;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+        }
+
+        #occupancy-graph {
+            width: 100%;
+            height: 200px;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+        }
+
+        .controls-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            animation: fadeIn 0.8s ease-out;
+            position: relative;
+        }
+
+        .card.producer {
+            border-top: 4px solid #2ecc71;
+        }
+
+        .card.consumer {
+            border-top: 4px solid #3498db;
+        }
+
+        .card h2 {
+            font-size: 1.4em;
+            margin-bottom: 25px;
+            color: #1a252f;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+        }
+
+        .card.blocked-visual::after {
+            content: 'BLOCKED';
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #e74c3c;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: 700;
+            letter-spacing: 1px;
+            animation: blockedPulse 1s infinite;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .control-group label {
+            font-weight: 700;
+            color: #34495e;
+            min-width: 60px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-add {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+        }
+
+        .btn-add:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
+        }
+
+        .btn-remove {
+            background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(230, 126, 34, 0.3);
+        }
+
+        .btn-remove:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(230, 126, 34, 0.4);
+        }
+
+        .btn-remove:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            appearance: none; 
+            -webkit-appearance: none;
+            -moz-appearance: none; 
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+        }
+
+        .speed-label {
+            min-width: 40px;
+            text-align: right;
+            font-weight: 700;
+            color: #3498db;
+        }
+
+        .count-badge {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9em;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+            min-width: 45px;
+            text-align: center;
+        }
+
+        .waiting-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            color: #e67e22;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .waiting-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #e67e22;
+            animation: spin 2s linear infinite;
+        }
+
+        .status-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card.status {
+            position: relative;
+        }
+
+        .status-indicators {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .status-item {
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 700;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-item.safe {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+        }
+
+        .status-item.warning {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            animation: pulseWarning 2s infinite;
+        }
+
+        .status-item.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            animation: pulseDanger 1.5s infinite;
+        }
+
+        .status-item.inactive {
+            background: #ecf0f1;
+            color: #95a5a6;
+        }
+
+        .last-action {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ecf0f1 100%);
+            padding: 18px;
+            border-radius: 12px;
+            border-left: 4px solid #3498db;
+            font-size: 0.95em;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+        }
+
+        .last-action strong {
+            color: #1a252f;
+            margin-right: 6px;
+        }
+
+        .last-action span {
+            color: #7f8c8d;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .stat-item {
+            background: linear-gradient(135deg, #ecf0f1 0%, #d5dbdb 100%);
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-4px);
+        }
+
+        .stat-value {
+            font-size: 3em;
+            font-weight: 700;
+            color: #3498db;
+            margin-bottom: 8px;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            .controls-section {
+                grid-template-columns: 1fr;
+            }
+
+            .status-section {
+                grid-template-columns: 1fr;
+            }
+
+            .semaphore-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .buffer-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .buffer-stats {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .buffer-slots {
+                grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+            }
+
+            .buffer-card {
+                padding: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Producer–Consumer Dashboard</h1>
+            <p>Real-time bounded buffer visualization with OS synchronization concepts</p>
+        </div>
+
+        <div class="semaphore-section">
+            <div class="semaphore-card">
+                <h2>OS Synchronization Model</h2>
+                <div class="semaphore-grid">
+                    <div class="semaphore-item" id="empty-semaphore">
+                        <div class="semaphore-label">Empty</div>
+                        <div class="semaphore-value" id="empty-value">10</div>
+                        <div class="semaphore-state">Available Slots</div>
+                    </div>
+                    <div class="semaphore-item" id="full-semaphore">
+                        <div class="semaphore-label">Full</div>
+                        <div class="semaphore-value" id="full-value">0</div>
+                        <div class="semaphore-state">Filled Slots</div>
+                    </div>
+                    <div class="semaphore-item" id="mutex-semaphore">
+                        <div class="semaphore-label">Mutex</div>
+                        <div class="semaphore-value" id="mutex-value">1</div>
+                        <div class="semaphore-state">Lock Available</div>
+                    </div>
+                </div>
+                <div class="semaphore-operations" id="semaphore-operations">
+                    Waiting for operations...
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-buffer">
+            <div class="buffer-card" id="buffer-card">
+                <div class="buffer-header">
+                    <h2>FIFO Buffer Queue</h2>
+                    <div class="buffer-stats">
+                        <div class="buffer-stat">
+                            <div class="buffer-stat-value" id="current-items">0</div>
+                            <div class="buffer-stat-label">Items</div>
+                        </div>
+                        <div style="color: #ecf0f1;">|</div>
+                        <div class="buffer-stat">
+                            <div class="buffer-stat-value"><span id="buffer-capacity">10</span></div>
+                            <div class="buffer-stat-label">Capacity</div>
+                        </div>
+                        <div style="color: #ecf0f1;">|</div>
+                        <div class="buffer-stat">
+                            <div class="buffer-stat-value" id="occupancy-percent">0%</div>
+                            <div class="buffer-stat-label">Full</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="fifo-container">
+                    <div class="fifo-markers">
+                        <div class="fifo-marker front" id="front-marker">
+                            <span>FRONT (Remove)</span>
+                        </div>
+                        <div class="fifo-marker rear" id="rear-marker">
+                            <span>REAR (Insert)</span>
+                        </div>
+                    </div>
+                    <div class="buffer-slots" id="buffer-slots"></div>
+                </div>
+                <div class="buffer-info-text" id="buffer-status">Ready to process items</div>
+            </div>
+        </div>
+
+        <div class="graph-section">
+            <div class="graph-card">
+                <h2>Buffer Occupancy Over Time</h2>
+                <canvas id="occupancy-graph"></canvas>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <div class="card producer" id="producer-card">
+                <h2>Producers</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <button class="btn-add" onclick="addProducer()">Add Producer</button>
+                        <button class="btn-remove" id="remove-producer-btn" onclick="removeProducer()">Remove</button>
+                        <span class="count-badge" id="producer-count">0</span>
+                    </div>
+                    <div id="producer-waiting" style="display: none;" class="waiting-indicator">
+                        Waiting (buffer full)
+                    </div>
+                    <div class="control-group">
+                        <label>Speed:</label>
+                        <div class="speed-control">
+                            <input type="range" id="producer-speed" min="500" max="3000" value="1500" step="100" oninput="updateProducerSpeed(this.value)">
+                            <span class="speed-label" id="producer-speed-label">1.5s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card consumer" id="consumer-card">
+                <h2>Consumers</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <button class="btn-add" onclick="addConsumer()">Add Consumer</button>
+                        <button class="btn-remove" id="remove-consumer-btn" onclick="removeConsumer()">Remove</button>
+                        <span class="count-badge" id="consumer-count">0</span>
+                    </div>
+                    <div id="consumer-waiting" style="display: none;" class="waiting-indicator">
+                        Waiting (buffer empty)
+                    </div>
+                    <div class="control-group">
+                        <label>Speed:</label>
+                        <div class="speed-control">
+                            <input type="range" id="consumer-speed" min="500" max="3000" value="1500" step="100" oninput="updateConsumerSpeed(this.value)">
+                            <span class="speed-label" id="consumer-speed-label">1.5s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-section">
+            <div class="card status">
+                <h2>Live Status</h2>
+                <div class="status-indicators">
+                    <div class="status-item inactive" id="buffer-full-status">Buffer Full</div>
+                    <div class="status-item inactive" id="buffer-empty-status">Buffer Empty</div>
+                </div>
+                <div class="last-action" id="last-action">
+                    <strong>Last Action:</strong> <span id="last-action-text">Waiting for activity...</span>
+                </div>
+            </div>
+
+            <div class="card status">
+                <h2>Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="total-produced">0</div>
+                        <div class="stat-label">Produced</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="total-consumed">0</div>
+                        <div class="stat-label">Consumed</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        // --- CONFIGURATION ---
+        const API_URL = "https://cyberarup.pythonanywhere.com";
+        let BUFFER_CAPACITY = 5; // Will be updated by backend
+        
+        // --- STATE ---
+        let buffer = []; // Keeps track of backend state
+        let producers = [];
+        let consumers = [];
+        let producerSpeed = 1500;
+        let consumerSpeed = 1500;
+        let totalProduced = 0;
+        let totalConsumed = 0;
+        let producerIdCounter = 1;
+        let consumerIdCounter = 1;
+
+        // Graph data
+        let graphData = [];
+        let graphTime = 0;
+        const MAX_GRAPH_POINTS = 50;
+        let graphCanvas, graphCtx;
+
+        // Semaphore operation log
+        let recentOperations = [];
+        const MAX_OPERATIONS = 3;
+
+        // --- GRAPHING FUNCTIONS ---
+        function initGraph() {
+            graphCanvas = document.getElementById('occupancy-graph');
+            graphCtx = graphCanvas.getContext('2d');
+            graphCanvas.width = graphCanvas.offsetWidth;
+            graphCanvas.height = 200;
+            graphData.push({ time: 0, size: 0 });
+            drawGraph();
+        }
+
+        function updateGraph() {
+            graphTime++;
+            // Calculate current fill count based on non -1 items
+            const currentCount = buffer.filter(x => x !== -1).length;
+            graphData.push({ time: graphTime, size: currentCount });
+
+            if (graphData.length > MAX_GRAPH_POINTS) graphData.shift();
+            drawGraph();
+        }
+
+        function drawGraph() {
+            if (!graphCtx) return;
+            const width = graphCanvas.width;
+            const height = graphCanvas.height;
+            const padding = 40;
+
+            graphCtx.clearRect(0, 0, width, height);
+            
+            // Draw Grid & Axes (Simplified for brevity)
+            graphCtx.strokeStyle = '#ecf0f1';
+            graphCtx.lineWidth = 1;
+            for (let i = 0; i <= BUFFER_CAPACITY; i++) {
+                const y = height - padding - (i / BUFFER_CAPACITY) * (height - padding * 2);
+                graphCtx.beginPath(); graphCtx.moveTo(padding, y); graphCtx.lineTo(width - padding, y); graphCtx.stroke();
+            }
+
+            // Draw Line
+            if (graphData.length > 1) {
+                graphCtx.strokeStyle = '#3498db';
+                graphCtx.lineWidth = 3;
+                graphCtx.beginPath();
+                graphData.forEach((point, index) => {
+                    const x = padding + (index / (MAX_GRAPH_POINTS - 1)) * (width - padding * 2);
+                    const y = height - padding - (point.size / BUFFER_CAPACITY) * (height - padding * 2);
+                    if (index === 0) graphCtx.moveTo(x, y); else graphCtx.lineTo(x, y);
+                });
+                graphCtx.stroke();
+            }
+        }
+
+        // --- SEMAPHORE & UI ANIMATIONS ---
+        function updateSemaphores(operation) {
+            const count = buffer.filter(x => x !== -1).length;
+            const empty = BUFFER_CAPACITY - count;
+            const full = count;
+
+            document.getElementById('empty-value').textContent = empty;
+            document.getElementById('full-value').textContent = full;
+
+            if (operation === 'produce') {
+                animateSemaphore('empty-semaphore', 'wait');
+                animateSemaphore('full-semaphore', 'signal');
+                addOperation('wait(empty)', 'signal(full)');
+            } else if (operation === 'consume') {
+                animateSemaphore('full-semaphore', 'wait');
+                animateSemaphore('empty-semaphore', 'signal');
+                addOperation('wait(full)', 'signal(empty)');
+            }
+        }
+
+        function animateSemaphore(id, type) {
+            const element = document.getElementById(id);
+            element.classList.remove('animating-signal', 'animating-wait');
+            setTimeout(() => {
+                element.classList.add(`animating-${type}`);
+                setTimeout(() => element.classList.remove(`animating-${type}`), 500);
+            }, 10);
+        }
+
+        function addOperation(...ops) {
+            recentOperations.push(...ops);
+            if (recentOperations.length > MAX_OPERATIONS) recentOperations = recentOperations.slice(-MAX_OPERATIONS);
+            const container = document.getElementById('semaphore-operations');
+            container.innerHTML = recentOperations.map(op => {
+                const isSignal = op.includes('signal');
+                return `<span class="operation ${isSignal ? 'signal' : 'wait'}">${op}</span>`;
+            }).join(' ');
+        }
+
+        // --- BUFFER VISUALIZATION ---
+        function getBufferColor() {
+            const count = buffer.filter(x => x !== -1).length;
+            const occupancy = count / BUFFER_CAPACITY;
+            if (occupancy >= 0.95) return 'danger';
+            if (occupancy >= 0.7) return 'warning';
+            return 'safe';
+        }
+
+        function initBufferDisplay() {
+            const container = document.getElementById('buffer-slots');
+            container.innerHTML = '';
+            for (let i = 0; i < BUFFER_CAPACITY; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'buffer-slot empty tooltip-container';
+                slot.id = `slot-${i}`;
+                slot.innerHTML = `<div class="slot-content"><div class="slot-index">[${i}]</div><div class="slot-item">-</div></div>`;
+                container.appendChild(slot);
+            }
+            document.getElementById('buffer-capacity').textContent = BUFFER_CAPACITY;
+        }
+
+        function updateBufferDisplay() {
+            const currentCount = buffer.filter(x => x !== -1).length;
+            
+            for (let i = 0; i < BUFFER_CAPACITY; i++) {
+                const slot = document.getElementById(`slot-${i}`);
+                const val = buffer[i];
+
+                if (val !== -1) {
+                    slot.className = `buffer-slot filled ${getBufferColor()} tooltip-container`;
+                    slot.querySelector('.slot-item').textContent = val;
+                } else {
+                    slot.className = 'buffer-slot empty tooltip-container';
+                    slot.querySelector('.slot-item').textContent = '-';
+                }
+            }
+
+            document.getElementById('current-items').textContent = currentCount;
+            document.getElementById('occupancy-percent').textContent = Math.round((currentCount / BUFFER_CAPACITY) * 100) + '%';
+            
+            // Status Badges
+            document.getElementById('buffer-full-status').className = `status-item ${currentCount === BUFFER_CAPACITY ? 'danger' : 'inactive'}`;
+            document.getElementById('buffer-empty-status').className = `status-item ${currentCount === 0 ? 'warning' : 'inactive'}`;
+            
+            document.getElementById('buffer-card').className = `buffer-card buffer-${getBufferColor()}`;
+            updateGraph();
+        }
+
+        // --- API INTEGRATION TASKS ---
+
+        function producerTask(id) {
+            return setInterval(() => {
+                fetch(`${API_URL}/produce`, { method: 'POST' })
+                    .then(response => {
+                        if (response.status === 409) {
+                            // Buffer Full
+                            document.getElementById('producer-waiting').style.display = 'flex';
+                            showBlockedAction('producer');
+                            return response.json(); // Get buffer state anyway
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        buffer = data.buffer; // Sync local buffer with Server C Array
+                        if (data.status === 'success') {
+                            totalProduced++;
+                            document.getElementById('total-produced').textContent = totalProduced;
+                            document.getElementById('last-action-text').textContent = `Producer ${id} added item ${data.produced}`;
+                            document.getElementById('producer-waiting').style.display = 'none';
+                            updateSemaphores('produce');
+                            
+                            // Highlight the change? We'd need to track index, 
+                            // but simpler just to refresh view
+                        }
+                        updateBufferDisplay();
+                    })
+                    .catch(err => console.error("API Error:", err));
+            }, producerSpeed);
+        }
+
+        function consumerTask(id) {
+            return setInterval(() => {
+                fetch(`${API_URL}/consume`)
+                    .then(response => {
+                        if (response.status === 409) {
+                            // Buffer Empty
+                            document.getElementById('consumer-waiting').style.display = 'flex';
+                            showBlockedAction('consumer');
+                            return response.json();
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        buffer = data.buffer; // Sync
+                        if (data.status === 'success') {
+                            totalConsumed++;
+                            document.getElementById('total-consumed').textContent = totalConsumed;
+                            document.getElementById('last-action-text').textContent = `Consumer ${id} consumed item ${data.consumed}`;
+                            document.getElementById('consumer-waiting').style.display = 'none';
+                            updateSemaphores('consume');
+                        }
+                        updateBufferDisplay();
+                    })
+                    .catch(err => console.error("API Error:", err));
+            }, consumerSpeed);
+        }
+
+        function showBlockedAction(type) {
+            const card = document.getElementById(`${type}-card`);
+            card.classList.add('blocked-visual');
+            setTimeout(() => card.classList.remove('blocked-visual'), 1000);
+        }
+
+        // --- CONTROLS ---
+
+        function addProducer() {
+            const id = producerIdCounter++;
+            const intervalId = producerTask(id);
+            producers.push({ id, intervalId });
+            document.getElementById('producer-count').textContent = producers.length;
+            document.getElementById('remove-producer-btn').disabled = false;
+        }
+
+        function removeProducer() {
+            if (producers.length > 0) {
+                const p = producers.pop();
+                clearInterval(p.intervalId);
+                document.getElementById('producer-count').textContent = producers.length;
+                if (producers.length === 0) {
+                    document.getElementById('remove-producer-btn').disabled = true;
+                    document.getElementById('producer-waiting').style.display = 'none';
+                }
+            }
+        }
+
+        function addConsumer() {
+            const id = consumerIdCounter++;
+            const intervalId = consumerTask(id);
+            consumers.push({ id, intervalId });
+            document.getElementById('consumer-count').textContent = consumers.length;
+            document.getElementById('remove-consumer-btn').disabled = false;
+        }
+
+        function removeConsumer() {
+            if (consumers.length > 0) {
+                const c = consumers.pop();
+                clearInterval(c.intervalId);
+                document.getElementById('consumer-count').textContent = consumers.length;
+                if (consumers.length === 0) {
+                    document.getElementById('remove-consumer-btn').disabled = true;
+                    document.getElementById('consumer-waiting').style.display = 'none';
+                }
+            }
+        }
+
+        function updateProducerSpeed(val) {
+            producerSpeed = parseInt(val);
+            document.getElementById('producer-speed-label').textContent = (val/1000).toFixed(1) + 's';
+            // Restart all producers with new speed
+            const count = producers.length;
+            producers.forEach(p => clearInterval(p.intervalId));
+            producers = [];
+            for(let i=0; i<count; i++) addProducer();
+        }
+
+        function updateConsumerSpeed(val) {
+            consumerSpeed = parseInt(val);
+            document.getElementById('consumer-speed-label').textContent = (val/1000).toFixed(1) + 's';
+            // Restart all consumers
+            const count = consumers.length;
+            consumers.forEach(c => clearInterval(c.intervalId));
+            consumers = [];
+            for(let i=0; i<count; i++) addConsumer();
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            // Fetch initial state from C Backend
+            fetch(`${API_URL}/status`)
+                .then(res => res.json())
+                .then(data => {
+                    BUFFER_CAPACITY = data.capacity;
+                    buffer = data.buffer;
+                    initBufferDisplay();
+                    initGraph();
+                    updateBufferDisplay();
+                })
+                .catch(err => {
+                    alert("Cannot connect to Backend! Is python c_api.py running?");
+                    console.error(err);
+                });
+
+            document.getElementById('remove-producer-btn').disabled = true;
+            document.getElementById('remove-consumer-btn').disabled = true;
+        };
+    </script>
+</body>
+</html>
