@@ -5,6 +5,9 @@ This project demonstrates the **Producer–Consumer problem** using a **C-based 
 
 It is designed for **Operating Systems / Networking / System Programming** practicals to show how low-level C logic can be safely accessed from higher-level applications.
 
+Here is the final project :- https://producer-consumer-dashboard.netlify.app/
+
+
 ---
 
 ## 🔧 Project Architecture
