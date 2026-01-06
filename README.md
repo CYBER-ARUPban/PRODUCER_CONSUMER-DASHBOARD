@@ -176,9 +176,6 @@ CORS(app)
 ## 🧑‍💻 Author
 
 **Arup Banerjee**
-**PRITAM PANJA**
-**SAYAN CHATTERJEE**
-**SURYADYUTI ADAK**
 ---
 
 ## ✅ License
